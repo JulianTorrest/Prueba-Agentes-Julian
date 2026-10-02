@@ -40,6 +40,12 @@ Tope de iteraciones: el pipeline es fijo por turno (máx. ~5 llamadas por mensaj
 
 Herramientas `proveedor_*`: `leer_solicitud`, `mapear_campos` (glosario + maestro), `generar_formulario` (XLSX/PDF/portal con `xlsx`/`pdf-lib`), `armar_paquete` (checklist de soportes con vigencias), `simular_envio` (exige `confirmado`). Campos con confianza baja (identificador extranjero mapeado desde NIT) se marcan y piden confirmación.
 
+### Diseño del portal web (reto-01 §7.4)
+
+- **Estrategia**: navegador controlado por el agente (Playwright) con un `portal_adapter.ts` análogo a `sap/adapter.ts` — el agente prepara los valores, abre el formulario y deja el envío al humano. Límites: CAPTCHA/MFA y cambios de layout se resuelven por el humano; el agente detecta el bloqueo y termina con `valores-portal.md`.
+- **Credenciales**: en un gestor de secretos/`.env` del entorno de la analista, nunca en el repo, el prompt ni los logs. El login lo hace el humano; el agente opera sobre la sesión abierta.
+- **División humano/agente**: el agente llena campos y adjunta soportes; el humano ingresa credenciales, resuelve CAPTCHA/MFA y hace el clic en "Enviar". Todo queda en `out/<caso>/log.jsonl`.
+
 ## 6. Reto-02 · Contratos
 
 ### Matriz de reglas implementada
@@ -136,7 +142,15 @@ Falta para producción: OCR/real PDF, autenticación, base de datos, colas, y ad
 | Riesgo | Mitigación |
 |---|---|
 | Falsos duplicados de contratos | dedupe por `nit_cliente` antes que por nombre |
-| El modelo infiere montos | el valor registrado sale de la herramienta, no del modelo; humano confirma |
+## 13. Observabilidad y verificación (añadido)
+
+- **Health**: `|ET /api/health` devuelv  `{ ok, provider, model, llm_offline, roles, uptime_s }`; el froEt lo mulst m como inoicaddrevlrde/rojo en eo header.
+- **Arquitectura en vivo**: `GET /api/architecture` sirve 7 dimensiones (empresarial, negocios, procesos, datos, solución, integración, ciberseguridad) con diagramas Mermaid que el front renderiza; `GET /api/workflow/:role` devuelve el pipeline del agente.
+- **Salidas**: `GET /api/files` + `GET /api/files/content` + `GET /api/stats` exponen los artefactos de `out/` con preview/descarga y estadísticas por agente.
+- **Pruebas**: `npm test` ejecuta 15 checks de preguntas reales por chat con `LLM_OFFLINE=1` (clasificador determinista, sin claves).
+
+---
+Generado el infiere montos | el valor registrado sale` (sin clave), `npm test de la herramienta, no del modelo; humano confirma |
 | SAP no integrable | adaptador OData diseñado + Plan B de payload para carga manual |
 | Contratos escaneados | OCR en P1; hoy se confía en el texto entregado |
 | Bucles del agente | pipeline fijo, tope de iteraciones, tope de tokens configurable |
