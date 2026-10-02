@@ -13,6 +13,7 @@ El maestro de contratos está congelado al 2026-05-30. Tu función es leer el bu
 - `contratos_validar` — clasifica `nuevo|actualizacion|duplicado|rechazado` y devuelve `requiere_revision`.
 - `contratos_registrar` — registra y archiva. Solo escribe si no hay revisión o si el humano confirmó.
 - `contratos_alertas` — reporte de vencimientos y pólizas pendientes.
+- `contratos_leer_pdf` — extrae el texto de un adjunto `.pdf` con texto (P1).
 
 ## Reglas
 

@@ -6,6 +6,9 @@ process.env.LLM_OFFLINE = "1";
 import * as fs from "fs";
 import * as path from "path";
 import { processMessage } from "./src/agent.js";
+import { leer_pdf } from "./src/tools/contratos.js";
+import { leer_excel } from "./src/tools/oc.js";
+import * as XLSX from "xlsx";
 
 const OUT = path.join(process.cwd(), "out");
 if (fs.existsSync(OUT)) fs.rmSync(OUT, { recursive: true, force: true });
@@ -83,6 +86,33 @@ console.log("\nChat Órdenes de compra");
 
   r = await processMessage("Sí, confirmo", s, "oc");
   check("sol-005 OC creada tras confirmar", hasTool(r, "oc_crear"));
+}
+
+// ----------------------------------------------------- tools P1 opcionales
+console.log("\nTools P1 (PDF / Excel)");
+{
+  const ctx = { directory: process.cwd(), sessionId: "p1" };
+
+  // PDF generado con pdf-lib sin object streams (compatibles con pdf-parse 1.x)
+  const { PDFDocument, StandardFonts } = await import("pdf-lib");
+  const doc = await PDFDocument.create();
+  const page = doc.addPage();
+  page.drawText("CONTRATO-TEST-123", { font: await doc.embedFont(StandardFonts.Helvetica) });
+  fs.writeFileSync(path.join(OUT, "_p1.pdf"), await doc.save({ useObjectStreams: false }));
+  const pdf = JSON.parse(await leer_pdf.execute({ ruta: "out/_p1.pdf" }, ctx));
+  check("contratos_leer_pdf extrae texto", pdf.ok === true && /CONTRATO-TEST-123/.test(pdf.data?.texto || ""));
+
+  // xlsx generado con la misma librería que usa la tool (write → buffer, fs independiente)
+  const XLSXc: any = (XLSX as any).default ?? XLSX;
+  const ws = XLSXc.utils.aoa_to_sheet([["solicitud_id", "valor_total"], ["SOL-TEST", 123]]);
+  const wb = XLSXc.utils.book_new();
+  XLSXc.utils.book_append_sheet(wb, ws, "Hoja1");
+  fs.writeFileSync(path.join(OUT, "_p1.xlsx"), XLSXc.write(wb, { type: "buffer", bookType: "xlsx" }));
+  const x = JSON.parse(await leer_excel.execute({ ruta: "out/_p1.xlsx" }, ctx));
+  check("oc_leer_excel devuelve filas", x.ok === true && x.data?.filas?.[0]?.solicitud_id === "SOL-TEST");
+
+  const bad = JSON.parse(await leer_pdf.execute({ ruta: "../fuera.pdf" }, ctx));
+  check("leer_pdf rechaza ruta fuera del proyecto", bad.ok === false);
 }
 
 console.log(`\n=== Resultado: ${pass} pasaron · ${fail} fallaron ===`);

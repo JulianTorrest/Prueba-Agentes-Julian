@@ -51,7 +51,7 @@ const pb = JSON.parse(rb);
 console.log("buzón:", (pb.data?.mensajes || []).map((m: any) => m.id).join(", "));
 for (const m of pb.data?.mensajes || []) {
   console.log(`\n-- ${m.id} (${m.de})`);
-  const rE = contratos.extraer.execute({ mensaje_id: m.id }, ctx);
+  const rE = await contratos.extraer.execute({ mensaje_id: m.id }, ctx);
   const pE = JSON.parse(rE);
   if (!pE.ok) { console.log("extraer:", pE.error); continue; }
   const rV = contratos.validar.execute({ mensaje_id: m.id, contrato: pE.data.contrato }, ctx);
@@ -72,7 +72,7 @@ console.log("vencen:", pA.data?.vencen?.length, "| pólizas:", pA.data?.polizas_
 console.log("\n--- RETO 03 · Órdenes de compra ---");
 for (const caso of ["sol-001", "sol-002", "sol-003", "sol-004", "sol-005", "sol-006"]) {
   console.log(`\n-- ${caso}`);
-  const rP = oc.leer_paquete.execute({ caso }, ctx);
+  const rP = await oc.leer_paquete.execute({ caso }, ctx);
   const pP = JSON.parse(rP);
   if (!pP.ok) { console.log("leer_paquete:", pP.error); continue; }
   const rV = await oc.validar.execute({ caso, paquete: pP.data.paquete }, ctx);
@@ -91,7 +91,7 @@ for (const caso of ["sol-001", "sol-002", "sol-003", "sol-004", "sol-005", "sol-
   }
 }
 console.log("\n-- idempotencia sol-001 (segunda ejecución)");
-const rP1 = oc.leer_paquete.execute({ caso: "sol-001" }, ctx);
+const rP1 = await oc.leer_paquete.execute({ caso: "sol-001" }, ctx);
 const pP1 = JSON.parse(rP1);
 const rV1 = await oc.validar.execute({ caso: "sol-001", paquete: pP1.data.paquete }, ctx);
 const rPay1 = await oc.construir_payload.execute({ caso: "sol-001", paquete: pP1.data.paquete, derivados: JSON.parse(rV1).data.derivados }, ctx);
@@ -99,7 +99,7 @@ const rC2 = await oc.crear.execute({ caso: "sol-001", payload: JSON.parse(rPay1)
 console.log("segunda:", JSON.parse(rC2).data?.numero_oc, "(mismo número que la primera)");
 
 console.log("\n-- confirmación explícita sol-004");
-const rP4 = oc.leer_paquete.execute({ caso: "sol-004" }, ctx);
+const rP4 = await oc.leer_paquete.execute({ caso: "sol-004" }, ctx);
 const pP4 = JSON.parse(rP4);
 const rV4 = await oc.validar.execute({ caso: "sol-004", paquete: pP4.data.paquete }, ctx);
 const pV4 = JSON.parse(rV4);

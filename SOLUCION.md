@@ -142,18 +142,21 @@ Falta para producción: OCR/real PDF, autenticación, base de datos, colas, y ad
 | Riesgo | Mitigación |
 |---|---|
 | Falsos duplicados de contratos | dedupe por `nit_cliente` antes que por nombre |
-## 13. Observabilidad y verificación (añadido)
-
-- **Health**: `|ET /api/health` devuelv  `{ ok, provider, model, llm_offline, roles, uptime_s }`; el froEt lo mulst m como inoicaddrevlrde/rojo en eo header.
-- **Arquitectura en vivo**: `GET /api/architecture` sirve 7 dimensiones (empresarial, negocios, procesos, datos, solución, integración, ciberseguridad) con diagramas Mermaid que el front renderiza; `GET /api/workflow/:role` devuelve el pipeline del agente.
-- **Salidas**: `GET /api/files` + `GET /api/files/content` + `GET /api/stats` exponen los artefactos de `out/` con preview/descarga y estadísticas por agente.
-- **Pruebas**: `npm test` ejecuta 15 checks de preguntas reales por chat con `LLM_OFFLINE=1` (clasificador determinista, sin claves).
-
----
-Generado el infiere montos | el valor registrado sale` (sin clave), `npm test de la herramienta, no del modelo; humano confirma |
+| El modelo infiere montos | el valor registrado sale de la herramienta, no del modelo; humano confirma |
 | SAP no integrable | adaptador OData diseñado + Plan B de payload para carga manual |
 | Contratos escaneados | OCR en P1; hoy se confía en el texto entregado |
 | Bucles del agente | pipeline fijo, tope de iteraciones, tope de tokens configurable |
 
 ---
-Generado el 2026-10-01. Verificable con `npm run demo` (sin clave) y `npm run dev` (chat con 3 tabs).
+
+## 13. Observabilidad y verificación (añadido)
+
+- **Tools P1 opcionales**: `contratos_leer_pdf` extrae texto de PDF reales (pdf-parse) y `oc_leer_excel` lee `.xlsx` reales (xlsx); ambas integradas como fallback — un adjunto `contrato.pdf`/`otrosi.pdf` o una `solicitud.xlsx` se procesan igual que sus equivalentes `.txt`/`.json`.
+- **Health**: `GET /api/health` devuelve `{ ok, provider, model, llm_offline, roles, uptime_s }`; el front lo muestra como indicador verde/rojo en el header.
+- **Arquitectura en vivo**: `GET /api/architecture` sirve 7 dimensiones (empresarial, negocios, procesos, datos, solución, integración, ciberseguridad) con diagramas Mermaid que el front renderiza; `GET /api/workflow/:role` devuelve el pipeline del agente.
+- **Salidas**: `GET /api/files` + `GET /api/files/content` + `GET /api/stats` exponen los artefactos de `out/` con preview/descarga y estadísticas por agente.
+- **Pruebas**: `npm test` ejecuta 18 checks por chat con `LLM_OFFLINE=1` (clasificador determinista, sin claves), incluidas las tools P1.
+
+---
+
+Generado el 2026-10-01. Verificable con `npm run demo` (sin clave), `npm test` (sin clave) y `npm run dev` (chat con 3 tabs).

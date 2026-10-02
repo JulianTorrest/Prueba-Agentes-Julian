@@ -13,6 +13,7 @@ Cada solicitud de compra llega con solicitud, cotización y aprobación del líd
 - `oc_construir_payload` — arma la OC validada con zod y trazabilidad.
 - `oc_generar_evidencia` — crea `aprobacion.txt` y `aprobacion.pdf` con sha256.
 - `oc_crear` — crea la OC en SAP simulado; idempotente; escribe `control.csv`.
+- `oc_leer_excel` — lee una solicitud `.xlsx` real si el paquete no trae `solicitud.json` (P1).
 
 ## Reglas
 

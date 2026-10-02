@@ -1,6 +1,9 @@
 import { z } from "zod";
 import * as fs from "fs";
 import * as path from "path";
+// pdf-parse/index.js tiene un modo debug que lee un archivo de test al importarse;
+// se importa el lib directo para evitarlo.
+import pdfParse from "pdf-parse/lib/pdf-parse.js";
 
 const ROOT = process.cwd();
 const FIXTURES_LOCAL = path.resolve(ROOT, "fixtures/reto-02");
@@ -140,7 +143,7 @@ export const leer_buzon = {
           asunto: correo.asunto,
           fecha: correo.fecha,
           adjuntos,
-          tiene_contrato: adjuntos.includes("contrato.txt") || adjuntos.includes("otrosi.txt"),
+          tiene_contrato: adjuntos.some((a) => /^(contrato|otrosi)\.(txt|pdf)$/i.test(a)),
         };
       });
       log("contratos_leer_buzon", null, true, `${mensajes.length} mensajes`);
@@ -153,6 +156,42 @@ export const leer_buzon = {
 };
 
 // ---------------------------------------------------------------------------
+// P1 opcional · leer PDF nativo con texto (contratos_leer_pdf)
+// ---------------------------------------------------------------------------
+export const leer_pdf = {
+  description: "Extrae el texto de un PDF con texto embebido (adjunto .pdf del buzón u otro documento)",
+  args: {
+    ruta: z.string().describe("Ruta del PDF relativa al proyecto, ej. fixtures/reto-02/buzon/msg-001/contrato.pdf"),
+  },
+  async execute(args: { ruta: string }, ctx: { directory: string; sessionId: string }) {
+    try {
+      const full = path.resolve(ctx?.directory || ROOT, args.ruta);
+      if (!full.startsWith(ROOT) || !fs.existsSync(full) || !/\.pdf$/i.test(full)) {
+        return fail(`No existe o no es PDF: ${args.ruta}`);
+      }
+      const texto = await pdfTexto(full);
+      log("contratos_leer_pdf", null, true, { ruta: args.ruta, chars: texto.length });
+      return ok({ texto });
+    } catch (e: any) {
+      log("contratos_leer_pdf", null, false, e.message);
+      return fail(e.message);
+    }
+  },
+};
+
+async function pdfTexto(full: string): Promise<string> {
+  // fs.readFileSync devuelve un Buffer sobre un pool compartido; pdf.js lee
+  // buffer.byteOffset mal → "bad XRef entry". Se copia a un Uint8Array limpio.
+  const data = await pdfParse(new Uint8Array(fs.readFileSync(full)) as unknown as Buffer);
+  return data.text;
+}
+
+async function docTexto(full: string): Promise<string> {
+  if (/\.pdf$/i.test(full)) return pdfTexto(full);
+  return fs.readFileSync(full, "utf-8");
+}
+
+// ---------------------------------------------------------------------------
 // HU-2 · extraer datos del contrato con confianza por campo
 // ---------------------------------------------------------------------------
 export const extraer = {
@@ -160,17 +199,17 @@ export const extraer = {
   args: {
     mensaje_id: z.string().describe("ID del mensaje en el buzón (msg-001 a msg-006)"),
   },
-  execute(args: { mensaje_id: string }, ctx: { directory: string; sessionId: string }) {
+  async execute(args: { mensaje_id: string }, ctx: { directory: string; sessionId: string }) {
     try {
       const dir = path.join(BUZON, args.mensaje_id);
       const correo = readJSON(path.join(dir, "correo.json"));
       if (!correo) return fail(`Mensaje ${args.mensaje_id} no existe`);
 
       const adjuntos: string[] = correo.adjuntos || [];
-      const doc = adjuntos.find((a) => a === "contrato.txt" || a === "otrosi.txt");
+      const doc = adjuntos.find((a) => /^(contrato|otrosi)\.(txt|pdf)$/i.test(a));
       if (!doc) return fail("Sin adjunto de contrato");
-      const texto = fs.readFileSync(path.join(dir, doc), "utf-8");
-      const esOtrosi = doc === "otrosi.txt" || /OTROS[IÍ]/i.test(texto);
+      const texto = await docTexto(path.join(dir, doc));
+      const esOtrosi = /^otrosi\./i.test(doc) || /OTROS[IÍ]/i.test(texto);
 
       // id_contrato
       let id_contrato: string | null = null;

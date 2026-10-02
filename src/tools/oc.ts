@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { createHash } from "crypto";
 import { PDFDocument, StandardFonts } from "pdf-lib";
+import * as XLSX from "xlsx";
 import { mockSap } from "../sap/mock.js";
 import type { OrdenCompra } from "../sap/adapter.js";
 
@@ -44,6 +45,16 @@ function readText(p: string): string | null {
   return fs.existsSync(p) ? fs.readFileSync(p, "utf-8") : null;
 }
 
+// Normaliza una fila de Excel a claves snake_case del esquema de solicitud
+function rowToSolicitud(row: any): any {
+  const out: any = {};
+  for (const [k, v] of Object.entries(row)) {
+    const key = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+    out[key] = v;
+  }
+  return out;
+}
+
 function normStr(s: string) {
   return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 }
@@ -60,13 +71,18 @@ export const leer_paquete = {
   args: {
     caso: z.string().describe("Nombre de la carpeta del caso en fixtures/reto-03/solicitudes/ (sol-001 a sol-006)"),
   },
-  execute(args: { caso: string }, ctx: { directory: string; sessionId: string }) {
+  async execute(args: { caso: string }, ctx: { directory: string; sessionId: string }) {
     try {
       const dir = path.join(SOLICITUDES, args.caso);
       if (!fs.existsSync(dir)) return fail(`Caso ${args.caso} no existe`);
 
       const correo = readJSON(path.join(dir, "correo.json"));
-      const solicitud = readJSON(path.join(dir, "solicitud.json"));
+      let solicitud = readJSON(path.join(dir, "solicitud.json"));
+      // Fallback P1: si el paquete trae la solicitud como .xlsx real, se lee con leer_excel
+      if (!solicitud && fs.existsSync(path.join(dir, "solicitud.xlsx"))) {
+        const r = JSON.parse(await leer_excel.execute({ ruta: path.join(dir, "solicitud.xlsx") }, ctx));
+        solicitud = r.ok && r.data.filas.length ? rowToSolicitud(r.data.filas[0]) : null;
+      }
       const cotTxt = readText(path.join(dir, "cotizacion.txt"));
       const aprob = readJSON(path.join(dir, "aprobacion.json"));
       const facTxt = readText(path.join(dir, "factura.txt"));
@@ -124,6 +140,35 @@ export const leer_paquete = {
       return ok({ paquete });
     } catch (e: any) {
       log("oc_leer_paquete", args.caso, false, e.message);
+      return fail(e.message);
+    }
+  },
+};
+
+// ---------------------------------------------------------------------------
+// P1 opcional · leer Excel real (oc_leer_excel)
+// ---------------------------------------------------------------------------
+export const leer_excel = {
+  description: "Lee un archivo .xlsx real y devuelve las filas de su primera hoja como objetos",
+  args: {
+    ruta: z.string().describe("Ruta del .xlsx relativa al proyecto, ej. fixtures/reto-03/solicitudes/sol-001/solicitud.xlsx"),
+  },
+  execute(args: { ruta: string }, ctx: { directory: string; sessionId: string }) {
+    try {
+      const full = path.resolve(ctx?.directory || ROOT, args.ruta);
+      if (!full.startsWith(ROOT) || !fs.existsSync(full) || !/\.xlsx$/i.test(full)) {
+        return fail(`No existe o no es xlsx: ${args.ruta}`);
+      }
+      // readFile/writeFile no siempre aparecen como named exports bajo ESM;
+      // se lee el buffer y se usa XLSX.read (equivale a readFile)
+      const XLSXc: any = (XLSX as any).default ?? XLSX;
+      const wb = XLSXc.read(fs.readFileSync(full), { type: "buffer" });
+      const hoja = wb.SheetNames[0];
+      const filas = XLSXc.utils.sheet_to_json(wb.Sheets[hoja]);
+      log("oc_leer_excel", null, true, { ruta: args.ruta, filas: filas.length });
+      return ok({ filas });
+    } catch (e: any) {
+      log("oc_leer_excel", null, false, e.message);
       return fail(e.message);
     }
   },

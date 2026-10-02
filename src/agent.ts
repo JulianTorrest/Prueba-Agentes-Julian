@@ -235,7 +235,7 @@ async function runProveedor(userMsg: string, session: any) {
 // ROL: contratos (reto-02)
 // ===========================================================================
 async function runContratoMsg(mensaje_id: string, toolLog: any[], ctx: any, session: any) {
-  const r1 = contratos.extraer.execute({ mensaje_id }, ctx);
+  const r1 = await contratos.extraer.execute({ mensaje_id }, ctx);
   const p1 = JSON.parse(r1);
   toolLog.push({ herramienta: "contratos_extraer", mensaje_id, ok: p1.ok, resumen: p1.data?.contrato?.id_contrato?.valor || p1.error });
   if (!p1.ok) return `No pude extraer ${mensaje_id}: ${p1.error}`;
@@ -326,7 +326,7 @@ async function runContratos(userMsg: string, session: any) {
 // ROL: oc (reto-03)
 // ===========================================================================
 async function runOcCaso(caso: string, toolLog: any[], ctx: any, session: any, confirmado: boolean) {
-  const r1 = oc.leer_paquete.execute({ caso }, ctx);
+  const r1 = await oc.leer_paquete.execute({ caso }, ctx);
   const p1 = JSON.parse(r1);
   toolLog.push({ herramienta: "oc_leer_paquete", caso, ok: p1.ok, resumen: p1.data?.paquete?.solicitud?.solicitud_id || p1.error });
   if (!p1.ok) return `No pude leer ${caso}: ${p1.error}`;
