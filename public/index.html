@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Agentes Periferia — Retos IA</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+  <style>
+    *{box-sizing:border-box}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;height:100vh;display:flex;flex-direction:column;background:#f5f5f7}
+    header{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#111827;color:#fff}
+    header h1{font-size:15px;margin:0;font-weight:600;flex:1}
+    .health{display:flex;align-items:center;gap:6px;font-size:12px;background:#1f2937;padding:6px 10px;border-radius:999px}
+    .dot{width:10px;height:10px;border-radius:50%;background:#6b7280;display:inline-block}
+    .dot.ok{background:#22c55e;box-shadow:0 0 6px #22c55e}
+    .dot.bad{background:#ef4444;box-shadow:0 0 6px #ef4444}
+    .menu-btn{padding:7px 14px;background:#374151;color:#fff;border:none;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer}
+    .menu-btn:hover{background:#4b5563}
+    .tabs{display:flex;gap:2px;background:#e5e5ea;padding:4px;border-bottom:1px solid #d1d1d6}
+    .tab{flex:1;padding:10px;text-align:center;cursor:pointer;border-radius:8px;font-weight:600;color:#6b7280;background:transparent;border:none}
+    .tab.active{background:#fff;color:#111;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+    #chat{flex:1;overflow-y:auto;padding:20px;max-width:920px;margin:0 auto;width:100%}
+    .msg{margin:10px 0;padding:12px 14px;border-radius:10px;white-space:pre-wrap;line-height:1.5}
+    .user{background:#d1e7ff;margin-left:50px}
+    .assistant{background:#fff;margin-right:50px;border:1px solid #e5e5ea}
+    .tools{background:#f0fdf4;border-left:4px solid #22c55e;margin:8px 0;padding:10px;font-size:12px;color:#166534}
+    .confirm{background:#fef3c7;border-left:4px solid #f59e0b;margin:8px 0;padding:10px;font-size:12px;color:#92400e}
+    .error{background:#fef2f2;border-left:4px solid #ef4444;color:#991b1b}
+    .form{display:flex;gap:10px;padding:14px;background:#fff;border-top:1px solid #e5e5ea}
+    input{flex:1;padding:12px;border:1px solid #d1d1d6;border-radius:8px;font-size:14px}
+    button{padding:12px 20px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer}
+    button:disabled{opacity:.5;cursor:wait}
+    #overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;z-index:10}
+    #panel{position:fixed;top:0;right:0;bottom:0;width:min(760px,92vw);background:#fff;box-shadow:-4px 0 24px rgba(0,0,0,.2);display:none;flex-direction:column;z-index:11}
+    #panel.open,#overlay.open{display:block}
+    #panel.open{display:flex}
+    .p-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e5e5ea}
+    .p-head h2{margin:0;font-size:16px}
+    .p-close{background:#e5e5ea;color:#111;padding:8px 14px}
+    .dim-bar{display:flex;gap:6px;flex-wrap:wrap;padding:10px 18px;border-bottom:1px solid #e5e5ea;background:#fafafa}
+    .dim{padding:6px 12px;border-radius:999px;background:#e5e5ea;color:#374151;font-size:12px;font-weight:600;border:none;cursor:pointer}
+    .dim.active{background:#111827;color:#fff}
+    #panel-body{flex:1;overflow-y:auto;padding:18px}
+    .dim-resumen{font-size:13px;line-height:1.6;color:#374151;background:#f9fafb;border:1px solid #e5e5ea;border-radius:8px;padding:12px;margin-bottom:14px}
+    .mermaid{background:#fff;border:1px solid #e5e5ea;border-radius:8px;padding:14px;overflow-x:auto}
+    pre.code{background:#111827;color:#d1d5db;padding:14px;border-radius:8px;overflow-x:auto;font-size:12px}
+    .meta{font-size:12px;color:#6b7280;margin-top:8px}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Agentes Periferia — Retos 1·2·3</h1>
+    <div class="health"><span id="dot" class="dot"></span><span id="health">…</span></div>
+    <button class="menu-btn" id="btn-files">Archivos generados</button>
+    <button class="menu-btn" id="btn-stats">Estadísticas</button>
+    <button class="menu-btn" id="btn-workflow">Workflow del agente</button>
+    <button class="menu-btn" id="btn-arch">Arquitectura</button>
+  </header>
+  <div class="tabs">
+    <button class="tab active" data-role="proveedor">Proveedores</button>
+    <button class="tab" data-role="contratos">Contratos</button>
+    <button class="tab" data-role="oc">Órdenes de compra</button>
+  </div>
+  <div id="chat"></div>
+  <div class="form">
+    <input id="input" placeholder="Escribe tu mensaje…"/>
+    <button id="send">Enviar</button>
+  </div>
+  <div id="overlay"></div>
+  <aside id="panel">
+    <div class="p-head"><h2 id="panel-title">Arquitectura</h2><button class="p-close" id="panel-close">Cerrar</button></div>
+    <div class="dim-bar" id="dim-bar"></div>
+    <div id="panel-body"></div>
+  </aside>
+<script>
+const chat=document.getElementById('chat'),input=document.getElementById('input'),btn=document.getElementById('send');
+const tabs=document.querySelectorAll('.tab');
+const state={};
+let role='proveedor';
+
+function render(){
+  chat.innerHTML='';
+  const s=state[role]||{sessionId:null,messages:[]};
+  s.messages.forEach(m=>{
+    const div=document.createElement('div');
+    div.className='msg '+m.role;
+    if(m.toolCalls&&m.toolCalls.length){
+      div.innerHTML=m.toolCalls.map(t=>`<div class="tools">${t.herramienta||t.name}: ${typeof t.resumen==='object'?JSON.stringify(t.resumen):t.resumen||''}</div>`).join('')+(m.content||'');
+    }else div.textContent=m.content;
+    chat.appendChild(div);
+    if(m.needsConfirmation){const c=document.createElement('div');c.className='confirm';c.textContent='⚠ Requiere confirmación humana';chat.appendChild(c);}
+  });
+  chat.scrollTop=chat.scrollHeight;
+}
+
+tabs.forEach(t=>t.addEventListener('click',()=>{
+  tabs.forEach(x=>x.classList.remove('active'));t.classList.add('active');
+  role=t.dataset.role;render();
+}));
+
+async function send(){
+  const txt=input.value.trim();if(!txt)return;
+  const s=state[role]||(state[role]={sessionId:crypto.randomUUID(),messages:[]});
+  s.messages.push({role:'user',content:txt});
+  render();input.value='';btn.disabled=true;
+  try{
+    const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:s.sessionId,role,message:txt})});
+    const j=await r.json();
+    s.messages.push({role:'assistant',content:j.reply||j.error,toolCalls:j.toolCalls||[],needsConfirmation:j.needsConfirmation});
+    if(j.needsConfirmation)s.pendingConfirm=true;
+  }catch(e){s.messages.push({role:'assistant',content:'Error: '+e.message});}
+  render();btn.disabled=false;
+}
+btn.addEventListener('click',send);
+input.addEventListener('keydown',e=>{if(e.key==='Enter')send();});
+render();
+
+// ------------------------- Health visible -------------------------
+async function pollHealth(){
+  const dot=document.getElementById('dot'),txt=document.getElementById('health');
+  try{
+    const r=await fetch('/api/health');const j=await r.json();
+    dot.className='dot '+(j.ok?'ok':'bad');
+    txt.textContent=`${j.provider} · ${j.model}${j.llm_offline?' · OFFLINE':''} · up ${j.uptime_s}s`;
+  }catch{dot.className='dot bad';txt.textContent='sin conexión';}
+}
+pollHealth();setInterval(pollHealth,15000);
+
+// ------------------------- Mermaid -------------------------
+let mermaidReady=false;
+if(window.mermaid){mermaid.initialize({startOnLoad:false,theme:'default'});mermaidReady=true;}
+let mermaidSeq=0;
+async function renderMermaid(container,code){
+  if(!mermaidReady){container.innerHTML='<pre class="code">'+code.replace(/</g,'&lt;')+'</pre>';return;}
+  try{
+    const {svg}=await mermaid.render('mmd'+(mermaidSeq++),code);
+    container.innerHTML='<div class="mermaid">'+svg+'</div>';
+  }catch(e){container.innerHTML='<pre class="code">'+code.replace(/</g,'&lt;')+'</pre>';}
+}
+
+// ------------------------- Panel: Arquitectura / Workflow ---------
+const overlay=document.getElementById('overlay'),panel=document.getElementById('panel'),panelBody=document.getElementById('panel-body'),panelTitle=document.getElementById('panel-title'),dimBar=document.getElementById('dim-bar');
+function closePanel(){panel.classList.remove('open');overlay.classList.remove('open');}
+document.getElementById('panel-close').onclick=closePanel;overlay.onclick=closePanel;
+
+let ARCH=null;
+async function openArchitecture(){
+  panelTitle.textContent='Arquitectura de la solución';
+  if(!ARCH){const r=await fetch('/api/architecture');ARCH=await r.json();}
+  dimBar.innerHTML='';
+  ARCH.dimensiones.forEach((d,i)=>{
+    const b=document.createElement('button');b.className='dim'+(i===0?' active':'');b.textContent=d.nombre;
+    b.onclick=()=>{dimBar.querySelectorAll('.dim').forEach(x=>x.classList.remove('active'));b.classList.add('active');showDim(d);};
+    dimBar.appendChild(b);
+  });
+  showDim(ARCH.dimensiones[0]);
+  panel.classList.add('open');overlay.classList.add('open');
+}
+function showDim(d){
+  panelBody.innerHTML=`<div class="dim-resumen"><strong>${d.nombre}.</strong> ${d.resumen}</div>`;
+  const holder=document.createElement('div');panelBody.appendChild(holder);
+  renderMermaid(holder,d.mermaid);
+  const meta=document.createElement('div');meta.className='meta';
+  meta.innerHTML=`Orquestador: <b>${ARCH.orquestador.tipo}</b> — ${ARCH.orquestador.detalle}<br>Switch LLM: <b>${ARCH.llm_switch.variable}</b> ∈ {${ARCH.llm_switch.opciones.join(', ')}} — ${ARCH.llm_switch.modelo_default}`;
+  panelBody.appendChild(meta);
+}
+document.getElementById('btn-arch').onclick=openArchitecture;
+
+async function openWorkflow(){
+  panelTitle.textContent='Workflow del agente';
+  dimBar.innerHTML='';
+  const r=await fetch('/api/workflow/'+role);const wf=await r.json();
+  panelBody.innerHTML=`<div class="dim-resumen"><strong>${wf.nombre}.</strong> Pipeline determinista ejecutado por el orquestador para el rol <code>${role}</code>.</div>`;
+  const holder=document.createElement('div');panelBody.appendChild(holder);
+  renderMermaid(holder,wf.mermaid);
+  panel.classList.add('open');overlay.classList.add('open');
+}
+document.getElementById('btn-workflow').onclick=openWorkflow;
+
+// ------------------------- Archivos generados ----------------------
+const PREVIEW_OK=/\.(md|txt|json|jsonl|csv|log)$/i;
+async function openFiles(){
+  panelTitle.textContent='Archivos generados (out/)';
+  dimBar.innerHTML='';
+  const r=await fetch('/api/files');const j=await r.json();
+  if(!j.archivos.length){panelBody.innerHTML='<div class="dim-resumen">Aún no se ha generado nada. Interactúa con un chat y vuelve aquí.</div>';}
+  else{
+    panelBody.innerHTML='';
+    let dir='';
+    for(const f of j.archivos){
+      const d=f.path.split('/').slice(0,-1).join('/')||'(raíz)';
+      if(d!==dir){dir=d;const h=document.createElement('div');h.className='file-dir';h.textContent='out/'+ (d==='(raíz)'?'':d+'/');panelBody.appendChild(h);}
+      const b=document.createElement('button');b.className='file';
+      const name=f.path.split('/').pop();
+      b.innerHTML=`📄 ${name} <span class="meta">${(f.size/1024).toFixed(1)} KB</span>`;
+      if(PREVIEW_OK.test(name)){
+        b.onclick=()=>previewFile(f.path,b);
+      }else{
+        b.innerHTML+=` <a class="dl" href="/out/${f.path}" target="_blank">descargar ↗</a>`;
+      }
+      panelBody.appendChild(b);
+    }
+  }
+  panel.classList.add('open');overlay.classList.add('open');
+}
+async function previewFile(p,btn){
+  const r=await fetch('/api/files/content?p='+encodeURIComponent(p));const j=await r.json();
+  const prev=panelBody.querySelector('.preview-box');if(prev)prev.remove();
+  const box=document.createElement('pre');box.className='code preview-box';box.textContent=j.content||j.error;
+  btn.after(box);
+}
+document.getElementById('btn-files').onclick=openFiles;
+
+// ------------------------- Estadísticas por agente -----------------
+async function openStats(){
+  panelTitle.textContent='Estadísticas por chat';
+  dimBar.innerHTML='';
+  const r=await fetch('/api/stats');const s=await r.json();
+  const card=(titulo,filas)=>`<div class="stat-card"><h3>${titulo}</h3>${filas.map(([k,v])=>`<div class="stat-row"><span>${k}</span><b>${Array.isArray(v)?v.join(', ')||'—':v}</b></div>`).join('')}</div>`;
+  panelBody.innerHTML=
+    card('Proveedores (reto-01)',[
+      ['Casos procesados',s.proveedor.casos_procesados],
+      ['Formularios xlsx',s.proveedor.formularios],
+      ['Paquetes armados',s.proveedor.paquetes_completos],
+      ['Envíos simulados',s.proveedor.envios_simulados],
+    ])+
+    card('Contratos (reto-02)',[
+      ['Mensajes procesados',s.contratos.mensajes_procesados],
+      ['Contratos en maestro',s.contratos.contratos_en_maestro],
+      ['Contratos archivados',s.contratos.contratos_archivados],
+      ['Eventos historial',s.contratos.eventos_historial],
+      ['Alertas generadas',s.contratos.alertas_generadas?'sí':'no'],
+    ])+
+    card('Órdenes de compra (reto-03)',[
+      ['Solicitudes procesadas',s.oc.solicitudes_procesadas],
+      ['OCs creadas en SAP',s.oc.ordenes_creadas],
+      ['Filas control.csv',s.oc.filas_control],
+      ['Bloqueadas',s.oc.bloqueadas],
+      ['Evidencias PDF',s.oc.evidencias_pdf],
+    ])+
+    card('Totales',[
+      ['Archivos en out/',s.totales.archivos],
+      ['Tamaño',(s.totales.bytes/1024).toFixed(1)+' KB'],
+      ['Eventos auditados',s.auditoria.log_global],
+    ])+
+    `<div class="meta">Generado: ${new Date(s.generado_en).toLocaleString()}</div>`;
+  panel.classList.add('open');overlay.classList.add('open');
+}
+document.getElementById('btn-stats').onclick=openStats;
+</script>
+</body>
+</html>
