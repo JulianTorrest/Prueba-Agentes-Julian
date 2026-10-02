@@ -83,6 +83,6 @@ npm start        # node dist/src/server.js
 4. Auto-deploy: cada push a `main` recompila y redeploya.
 5. Sin claves: define `LLM_OFFLINE=1` en Render para la demo determinista.
 
-**Link de prueba**: <https://prueba-agentes-julian.onrender.com> *(ajusta a tu URL real)*
+**Link de prueba**: <https://prueba-agentes-julian.onrender.com>
 
 Las sesiones son por rol y pestaña; cada tab mantiene su historial y su estado de confirmación humana. En Render el filesystem es efímero: `out/` se reinicia con cada deploy (normal para la demo).
