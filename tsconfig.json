@@ -19,5 +19,5 @@
     "allowJs": true,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "demo.ts", "test.ts"]
+  "include": ["src/**/*.ts", "demo.ts", "test.ts", "modulo/**/*.ts"]
 }
